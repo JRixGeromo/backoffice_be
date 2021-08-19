@@ -7,5 +7,6 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
 WORKDIR /app
 COPY . .
 RUN composer install
+RUN composer dump-autoload
 
 CMD php artisan serve --host=0.0.0.0

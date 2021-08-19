@@ -115,7 +115,22 @@ class OrderController extends Controller
         $data = array();
         $fromYear = strtotime('2020/01/01');
         $toYear = strtotime('2020/12/31');
-        if($type == 'overview') {
+        if($type=='overview') {
+            
+            $data['summary'] = TxShopDomainModelOrderItem::query()
+                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->selectRaw(
+                    "SUM(tx_shop_domain_model_order_item.total_net) as total_total_net,
+                    SUM(tx_shop_domain_model_order_item.net) as total_net,
+                    COUNT(tx_shop_domain_model_order_item.order_number) as total_orders,
+                    SUM(tx_shop_domain_model_order_product.count) as total_items_sold,
+                    213213 as total_black"
+                    )
+                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                //->groupBy('date')
+                ->get();
+
             $data['sales'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
@@ -127,17 +142,153 @@ class OrderController extends Controller
                 ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
                 ->groupBy('date')
                 ->get();
+            
+            $data['percent'] = array("total_total_net"=>89,
+                                    "total_net"=>54,
+                                    "total_orders"=>67,
+                                    "total_items_sold"=>78,
+                                    "total_black"=>78
+                                    );
+
+        } else if($type=='products') {
+            $data['summary'] = TxShopDomainModelOrderItem::query()
+                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->selectRaw(
+                    "SUM(tx_shop_domain_model_order_product.count) as total_items_sold,
+                    COUNT(tx_shop_domain_model_order_item.order_number) as total_orders,
+                    SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales"
+                    )
+                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                //->groupBy('date')
+                ->get();
+
+            $data['sales'] = TxShopDomainModelOrderItem::query()
+                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->selectRaw(
+                    "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y-%m-%d') as date, 
+                    SUM(tx_shop_domain_model_order_product.count) as items_sold,
+                    SUM(tx_shop_domain_model_order_item.total_net) as net_sales"
+                    )
+                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                ->groupBy('date')
+                ->get();
+
+            $data['percent'] = array("orders"=>67,
+                                    "net_sales"=>89,
+                                    "item_sold"=>18,
+                                    );
+                
+        } else if($type=='orders') {
+            $data['summary'] = TxShopDomainModelOrderItem::query()
+                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->selectRaw(
+                    "SUM(tx_shop_domain_model_order_item.net) as net_sales,
+                    COUNT(tx_shop_domain_model_order_item.order_number) as total_orders,
+                    SUM(tx_shop_domain_model_order_product.count) as total_items_sold,
+                    SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales"
+                    )
+                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                //->groupBy('date')
+                ->get();
+
+                // Ave order value =  total_net_sales / total_orders
+                // Ave items per order =  total_items_sold / total_orders
+
+            $data['sales'] = TxShopDomainModelOrderItem::query()
+                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->selectRaw(
+                    "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y-%m-%d') as date, 
+                    SUM(tx_shop_domain_model_order_product.count) as orders,
+                    SUM(tx_shop_domain_model_order_item.total_net) as net_sales"
+                    )
+                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                ->groupBy('date')
+                ->get();
+
+            $data['percent'] = array("orders"=>67,
+                                "net_sales"=>89,
+                                "ave_order_value"=>54,
+                                "ave_item_per_order"=>78
+                                );
+
+        } else if($type=='revenue') {
+            $data['summary'] = TxShopDomainModelOrderItem::query()
+                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->selectRaw(
+                    "SUM(tx_shop_domain_model_order_item.net) as total_net,
+                    SUM(tx_shop_domain_model_order_item.gross) as total_gross_sales,
+                    SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales,
+                    SUM(tx_shop_domain_model_order_item.total_gross) as total_gross_sales,
+                    34324 as total_taxes,
+                    54634 as total_shipping,
+                    232 as total_coupons,
+                    564544 as total_returns,
+                    324323 as total_sales
+                    "
+                    )
+                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                //->groupBy('date')
+                ->get();
+
+            $data['sales'] = TxShopDomainModelOrderItem::query()
+                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->selectRaw(
+                    "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y-%m-%d') as date, 
+                    SUM(tx_shop_domain_model_order_product.count) as items_sold,
+                    SUM(tx_shop_domain_model_order_item.total_net) as net_sales"
+                    )
+                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                ->groupBy('date')
+                ->get();
+            
+            $data['percent'] = array("gross_sales"=>67,
+                                "returns"=>89,
+                                "coupons"=>54,
+                                "net_sales"=>78,
+                                "taxes"=>81,
+                                "shipping"=>70,
+                                "total_sales"=>78
+                                );
+                                
+        } else if($type=='customer') {
+            $data['customer_info'] = FeUser::query()->select("*")->limit(1)->get();
+            $data['orders'] = TxShopDomainModelOrderItem::query()
+                ->select('*')
+                ->limit(6)
+                ->get();
+            $data['viewed_products'] = TxShopDomainModelOrderItem::query()
+                ->select('*')
+                ->limit(6)
+                ->get();
+            $data['message'] = 'This is a test message';
+            $data['voucher'] = 'This is a test voucher';
+            $data['last_emails'] = TxShopDomainModelOrderItem::query()
+                ->select('*')
+                ->limit(6)
+                ->get();
+            $data['groups'] = TxShopDomainModelOrderItem::query()
+                ->select('*')
+                ->limit(6)
+                ->get();
+
         } else {
             $top = $this->top($type, $fromYear, $toYear);    
-            $data = array_merge($data, $top);
-        }
+            $data = array_merge($data, $top); 
+        }       
+        
         return $data;
     }
     
     private function top($type, $fromYear, $toYear)
     {
         
-        if($type == 'countries') {
+        if($type == 'top_countries') {
             $data['top_countries'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_address', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_address.linked_id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
@@ -152,7 +303,7 @@ class OrderController extends Controller
                 ->orderBy('orders', 'DESC')
                 ->limit(6)
                 ->get();
-        } else if ($type == 'customers') {
+        } else if ($type == 'top_customers') {
             $data['top_customers'] = TxShopDomainModelOrderItem::query()
                 ->join('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
@@ -167,7 +318,7 @@ class OrderController extends Controller
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
-        } else if ($type == 'categories') {
+        } else if ($type == 'top_categories') {
             $data['top_categories'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
@@ -181,7 +332,7 @@ class OrderController extends Controller
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
-        } else if ($type == 'products') {
+        } else if ($type == 'top_products') {
             $data['top_products'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
