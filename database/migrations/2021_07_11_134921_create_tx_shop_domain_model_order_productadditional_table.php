@@ -15,7 +15,7 @@ class CreateTxShopDomainModelOrderProductadditionalTable extends Migration
     {
         Schema::create('tx_shop_domain_model_order_productadditional', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('linked_id')->nullable()->default(0);
+            $table->unsignedInteger('linked_id')->nullable()->default(0)->index('linked_id');
             $table->unsignedInteger('product')->nullable()->default(0);
             $table->string('additional_type', 255)->nullable()->default('');
             $table->string('additional_key', 255)->nullable()->default('');

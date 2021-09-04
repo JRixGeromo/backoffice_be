@@ -109,34 +109,91 @@ class Helper {
         try {
 
             DB::beginTransaction();
-            $feUser = FeUser::where('email',$order->feUser->email)->first(); // check if the user already in the backoffice
+            if($order->feUser->email) {
+                $wishlistHash = $order->feUser->wishlistHash;
+                $isGuest = $order->feUser->isGuest;
+                $isUnsubscribed = $order->feUser->isUnsubscribed;
+                $username = $order->feUser->username;
+                $password = $order->feUser->password;
+                $name = $order->feUser->name;
+                $firstName = $order->feUser->firstName;
+                $middleName = $order->feUser->middleName;
+                $lastName = $order->feUser->lastName;
+                $address = $order->feUser->address;
+                $telephone = $order->feUser->telephone;
+                $fax = $order->feUser->fax;
+                $email = $order->feUser->email;
+                $lockToDomain = $order->feUser->lockToDomain;
+                $title = $order->feUser->title;
+                $zip = $order->feUser->zip;
+                $city = $order->feUser->city;
+                $country = $order->feUser->country;
+                $www = $order->feUser->www;
+                $company = $order->feUser->company;
+                $lastlogin = $order->feUser->lastlogin;
+                $uid = $order->feUser->uid;
+                $pid = $order->feUser->pid;
+                $user_type = 'registered';
+            } else {
+                $user = "billingAddress";
+                if(!$order->billingAddress->email) {
+                    $user = "shippingAddress";
+                }
+                $wishlistHash = null;
+                $isGuest = 1;
+                $isUnsubscribed = null;
+                $username = $order->shippingAddress->salutation;
+                $password = null;
+                $name = $order->shippingAddress->name;
+                $firstName = $order->shippingAddress->firstName;
+                $middleName = null;
+                $lastName = $order->shippingAddress->lastName;
+                $address = null;
+                $telephone = $order->shippingAddress->phone;
+                $fax = $order->shippingAddress->fax;
+                $email = $order->shippingAddress->email;
+                $lockToDomain = null;
+                $title = $order->shippingAddress->title;
+                $zip = $order->shippingAddress->zip;
+                $city = $order->shippingAddress->city;
+                $country = $order->shippingAddress->country;
+                $www = null;
+                $company = $order->shippingAddress->company;
+                $lastlogin = null;
+                $uid = null;
+                $pid = null;
+                $user_type = 'guest';
+            }
+
+            $feUser = FeUser::where('email',$email)->first(); // check if the user already in the backoffice
             if(!$feUser) {  // if none, create the user
                 $newFeUser = FeUser::create(array(
-                    'tx_shop_wishlist_hash' => $order->feUser->wishlistHash,
-                    'tx_shop_is_guest' => $order->feUser->isGuest,
-                    'tx_shop_is_unsubscribed' => $order->feUser->isUnsubscribed,
-                    'username' => $order->feUser->username,
-                    'password' => $order->feUser->password,
-                    //'usergroup' => $order->feUser->usergroup,
-                    'name' => $order->feUser->name,
-                    'first_name' => $order->feUser->firstName,
-                    'middle_name' => $order->feUser->middleName,
-                    'last_name' => $order->feUser->lastName,
-                    'address' => $order->feUser->address,
-                    'telephone' => $order->feUser->telephone,
-                    'fax' => $order->feUser->fax,
-                    'email' => $order->feUser->email,
-                    'lockToDomain' => $order->feUser->lockToDomain,
-                    'title' => $order->feUser->title,
-                    'zip' => $order->feUser->zip,
-                    'city' => $order->feUser->city,
-                    'country' => $order->feUser->country,
-                    'www' => $order->feUser->www,
-                    'company' => $order->feUser->company,
-                    //'image' => $order->feUser->image,
-                    'lastlogin' => $order->feUser->lastlogin,
-                    'uid' => $order->feUser->uid,
-                    'pid' => $order->feUser->pid
+                    'tx_shop_wishlist_hash' => $wishlistHash,
+                    'tx_shop_is_guest' => $isGuest,
+                    'tx_shop_is_unsubscribed' => $isUnsubscribed,
+                    'username' => $username,
+                    'password' => $password,
+                    //'usergroup' => $usergroup,
+                    'name' => $name,
+                    'first_name' => $firstName,
+                    'middle_name' => $middleName,
+                    'last_name' => $lastName,
+                    'address' => $address,
+                    'telephone' => $telephone,
+                    'fax' => $fax,
+                    'email' => $email,
+                    'lockToDomain' => $lockToDomain,
+                    'title' => $title,
+                    'zip' => $zip,
+                    'city' => $city,
+                    'country' => $country,
+                    'www' => $www,
+                    'company' => $company,
+                    //'image' => $image,
+                    'lastlogin' => $lastlogin,
+                    'uid' => $uid,
+                    'pid' => $pid,
+                    'user_type' => $user_type
                 ));
                 $feUserId = $newFeUser->id;
             } else {

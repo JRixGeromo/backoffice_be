@@ -26,6 +26,9 @@ Route::post('login', [AuthController::class, 'login']);
 // Route::apiResource('orders', OrderController::class);
 // Route::apiResource('users', UserController::class);
 Route::get('date_grouping', [OrderController::class, 'dateGrouping']);
+Route::apiResource('users', UserController::class);
+Route::apiResource('roles', RoleController::class);
+Route::get('permissions', [PermissionController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('user', [AuthController::class, 'user']);
@@ -33,10 +36,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('users/info', [AuthController::class, 'updateInfo']);
     Route::put('users/password', [AuthController::class, 'updatePassword']);
 
-    Route::apiResource('users', UserController::class);
-    Route::apiResource('roles', RoleController::class);
-    //Route::apiResource('products', ProductController::class);
-    Route::get('permissions', [PermissionController::class, 'index']);
+    // Route::apiResource('users', UserController::class);
+    // Route::apiResource('roles', RoleController::class);
+    // Route::get('permissions', [PermissionController::class, 'index']);
     //Route::post('upload', [ImageController::class, 'upload']);
 
     Route::get('orders', [OrderController::class, 'index']);

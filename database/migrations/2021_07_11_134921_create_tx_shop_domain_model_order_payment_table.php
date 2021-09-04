@@ -15,7 +15,7 @@ class CreateTxShopDomainModelOrderPaymentTable extends Migration
     {
         Schema::create('tx_shop_domain_model_order_payment', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('linked_id')->nullable()->default(0);
+            $table->unsignedInteger('linked_id')->nullable()->default(0)->index('linked_id');
             $table->string('item', 255)->nullable()->default('');
             $table->string('addtional', 255)->nullable()->default('');
             $table->string('service_country', 255)->nullable()->default('');

@@ -15,7 +15,7 @@ class CreateTxShopDomainModelOrderTaxTable extends Migration
     {
         Schema::create('tx_shop_domain_model_order_tax', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('linked_id')->nullable()->default(0);
+            $table->unsignedInteger('linked_id')->nullable()->default(0)->index('linked_id');
             $table->unsignedInteger('item')->nullable()->default(0);
             $table->double('tax', 11, 2)->nullable()->default(0.00);
             $table->unsignedInteger('tax_class')->nullable()->default(0);

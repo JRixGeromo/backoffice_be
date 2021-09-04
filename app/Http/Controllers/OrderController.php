@@ -20,24 +20,29 @@ class OrderController extends Controller
     public function index()
     {
         $helper = new Helper();
+        
         $url = "https://zotterdev.developer.at/?type=2289002";
         $maxOrderNumber = OrderImportTracker::max('order_number');
+
         if((int)$maxOrderNumber > 0) {
             $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$maxOrderNumber;
         }
-        sleep(1);
+        sleep(2);
         
         $result = $helper->consumeAPIClient($url, true);  // for XML REST
         if($result) {
             $result = $helper->importOrderTracker($result);  // store ORDERS for import
         }
-        //$forImportOrders = OrderImportTracker::where('import_status', 0)->limit(100)->get()->toArray();
-        $forImportOrders = OrderImportTracker::where('import_status', 0)->get()->toArray();
+        
+        $forImportOrders = OrderImportTracker::where('import_status', 0)->limit(1000)->get()->toArray();
+        //$forImportOrders = OrderImportTracker::where('import_status', 0)->get()->toArray();
         foreach ($forImportOrders as $order) { // for uid REST
+
             $url = "https://zotterdev.developer.at/rest/shop_item/".$order['uid'];
             $result = $helper->consumeAPIClient($url, false);  // for REST
             if($result) {
-                //sleep(1);
+                sleep(1);
+                // echo $order['uid'];
                 $result = $helper->importOrderByUID($result, $order['id']);  // import ORDER
             }
             
@@ -113,19 +118,35 @@ class OrderController extends Controller
     public function analytics($type)
     {
         $data = array();
-        $fromYear = strtotime('2020/01/01');
-        $toYear = strtotime('2020/12/31');
+
+        $ymd = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y-%m-%d') as ymd";
+        $md = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m-%d') as md";
+        $y = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y') as y";
+
+        $orders = "COUNT(tx_shop_domain_model_order_item.order_number) as orders";
+        $total_sales = "SUM(tx_shop_domain_model_order_item.total_gross) as total_sales";
+        $items_sold = "SUM(tx_shop_domain_model_order_product.count) as items_sold";
+        $net_sales = "SUM(tx_shop_domain_model_order_item.total_net) as net_sales";
+
+        $currentFrom = Carbon::parse('2021/05/01')->timestamp;
+        $currentTo = Carbon::parse('2021/05/30')->timestamp;
+        $previousFrom = Carbon::parse('2020/05/01')->timestamp;
+        $previousto = Carbon::parse('2020/05/30')->timestamp;
+
         if($type=='overview') {
             $data['sales'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y-%m-%d') as date, 
-                    SUM(tx_shop_domain_model_order_product.count) as items_sold,
-                    SUM(tx_shop_domain_model_order_item.total_net) as net_sales"
+                    $ymd .' , '. 
+                    $md .' , '. 
+                    $y .' , '. 
+                    $orders .' , '. 
+                    $net_sales 
                     )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                ->groupBy('date')
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('ymd', 'md', 'y')
                 ->get();
 
         } else if($type=='overview_summary') {
@@ -133,68 +154,63 @@ class OrderController extends Controller
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "SUM(tx_shop_domain_model_order_item.total_net) as total_total_net,
-                    SUM(tx_shop_domain_model_order_item.net) as total_net,
-                    COUNT(tx_shop_domain_model_order_item.order_number) as total_orders,
-                    SUM(tx_shop_domain_model_order_product.count) as total_items_sold,
-                    213213 as total_black"
+                    $y .' , '. 
+                    $orders ." , ". 
+                    $net_sales . ", ". 
+                    $items_sold. ", ". 
+                    $total_sales . ", '0' as black"
                     )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                //->groupBy('date')
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('y')
                 ->get();
-            
-            $data['percent'] = array("total_total_net"=>89,
-                                    "total_net"=>54,
-                                    "total_orders"=>67,
-                                    "total_items_sold"=>78,
-                                    "total_black"=>78
-                                    );        
 
         } else if($type=='products') {
 
             $data['sales'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y-%m-%d') as date, 
-                    SUM(tx_shop_domain_model_order_product.count) as items_sold,
-                    SUM(tx_shop_domain_model_order_item.total_net) as net_sales"
+                    $ymd .' , '. 
+                    $md .' , '. 
+                    $y .' , '. 
+                    $items_sold
                     )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                ->groupBy('date')
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('ymd', 'md', 'y')
                 ->get();
 
         } else if($type=='products_summary') {
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "SUM(tx_shop_domain_model_order_product.count) as total_items_sold,
-                    COUNT(tx_shop_domain_model_order_item.order_number) as total_orders,
-                    SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales"
-                    )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                //->groupBy('date')
+                    $y .' , '. 
+                    $orders .' , '. 
+                    $net_sales . ", ".
+                    $items_sold
+                    )                    
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('y')
                 ->get();
-
-            $data['percent'] = array("orders"=>67,
-                                    "net_sales"=>89,
-                                    "item_sold"=>18,
-                                    );
                                     
         } else if($type=='orders') {
 
             $data['sales'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y-%m-%d') as date, 
-                    SUM(tx_shop_domain_model_order_product.count) as orders,
-                    SUM(tx_shop_domain_model_order_item.total_net) as net_sales"
+                    $ymd .' , '. 
+                    $md .' , '. 
+                    $y .' , '. 
+                    $orders
                     )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                ->groupBy('date')
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('ymd', 'md', 'y')
                 ->get();
 
 
@@ -202,45 +218,43 @@ class OrderController extends Controller
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "SUM(tx_shop_domain_model_order_item.net) as net_sales,
-                    COUNT(tx_shop_domain_model_order_item.order_number) as total_orders,
-                    SUM(tx_shop_domain_model_order_product.count) as total_items_sold,
-                    SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales"
+                    $y .' , '. 
+                    $orders .' , '. 
+                    $total_sales .' , '. 
+                    $items_sold .' , '. 
+                    $net_sales
                     )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                //->groupBy('date')
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('y')
                 ->get();
 
                 // Ave order value =  total_net_sales / total_orders
                 // Ave items per order =  total_items_sold / total_orders
-
-            $data['percent'] = array("orders"=>67,
-                                "net_sales"=>89,
-                                "ave_order_value"=>54,
-                                "ave_item_per_order"=>78
-                                );
 
         } else if($type=='revenue') {
 
             $data['sales'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m-%d') as ymd, 
-                    DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m-%d') as md, 
-                    DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y') as y, 
-                    SUM(tx_shop_domain_model_order_product.count) as items_sold,
-                    SUM(tx_shop_domain_model_order_item.total_net) as net_sales"
-                    )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
+                    $ymd .' , '. 
+                    $md .' , '. 
+                    $y .' , '. 
+                    $items_sold .' , '. 
+                    $net_sales
+                   )
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
-            
+
         } else if($type=='revenue_summary') {
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
+                    $y .' , '. 
                     "SUM(tx_shop_domain_model_order_item.net) as total_net,
                     SUM(tx_shop_domain_model_order_item.gross) as total_gross_sales,
                     SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales,
@@ -252,9 +266,10 @@ class OrderController extends Controller
                     324323 as total_sales
                     "
                     )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                //->groupBy('date')
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('y')
                 ->get();
             
             $data['percent'] = array("gross_sales"=>67,
@@ -288,76 +303,87 @@ class OrderController extends Controller
                 ->get();
 
         } else {
-            $top = $this->top($type, $fromYear, $toYear);    
+            $top = $this->top($type, $currentFrom, $currentTo, $previousFrom, $previousto, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y);    
             $data = array_merge($data, $top); 
         }       
         
         return $data;
     }
     
-    private function top($type, $fromYear, $toYear)
+    private function top($type, $currentFrom, $currentTo, $previousFrom, $previousto, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y)
     {
-        
+
         if($type == 'top_countries') {
             $data['top_countries'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_address', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_address.linked_id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "SUM(tx_shop_domain_model_order_item.total_gross) as total_sales,
-                    SUM(tx_shop_domain_model_order_product.count) as orders,
-                    tx_shop_domain_model_order_address.country as country"
+                    $y .' , '. 
+                    $total_sales .' , '. 
+                    $orders .' , '. 
+                    "tx_shop_domain_model_order_address.country as country"
                     )
-                //->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                ->groupBy('country')
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('country', 'y')
                 ->orderBy('orders', 'DESC')
                 ->limit(6)
                 ->get();
+
         } else if ($type == 'top_customers') {
             $data['top_customers'] = TxShopDomainModelOrderItem::query()
                 ->join('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "SUM(tx_shop_domain_model_order_item.total_gross) as total_sales,
-                    SUM(tx_shop_domain_model_order_product.count) as orders,
-                    fe_users.email as customer"
+                    $y .' , '. 
+                    $total_sales .' , '. 
+                    $orders .' , '. 
+                    "fe_users.email as customer"
                 )
-                //->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                ->groupBy('customer')
+                ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('customer', 'y')
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
+
         } else if ($type == 'top_categories') {
             $data['top_categories'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
-                ->selectRaw(
-                    "SUM(tx_shop_domain_model_order_item.total_gross) as total_sales,
-                    SUM(tx_shop_domain_model_order_product.count) as orders,
-                    tx_shop_domain_model_order_product.product_type as product_type"
+                ->selectRaw(        
+                    $y .' , '.         
+                    $total_sales .' , '.
+                    $orders .' , '. 
+                    "tx_shop_domain_model_order_product.product_type as product_type"
                 )
-                //->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                ->groupBy('product_type')
+                ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('product_type', 'y')
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
+
         } else if ($type == 'top_products') {
             $data['top_products'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    "SUM(tx_shop_domain_model_order_item.total_gross) as total_sales,
-                    SUM(tx_shop_domain_model_order_product.count) as orders,
-                    tx_shop_domain_model_order_product.title as title"
+                    $y .' , '. 
+                    $total_sales .' , '. 
+                    $orders .' , '. 
+                    "tx_shop_domain_model_order_product.title as title"
                 )
-                //->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
-                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$fromYear, $toYear])
-                ->groupBy('title')
+                ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->groupBy('title', 'y')
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
         }    
-        
+
         return $data;        
             
     }

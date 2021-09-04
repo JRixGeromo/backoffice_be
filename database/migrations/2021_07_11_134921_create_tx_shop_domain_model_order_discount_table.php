@@ -15,7 +15,7 @@ class CreateTxShopDomainModelOrderDiscountTable extends Migration
     {
         Schema::create('tx_shop_domain_model_order_discount', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('linked_id')->nullable()->default(0);
+            $table->unsignedInteger('linked_id')->nullable()->default(0)->index('linked_id');
             $table->unsignedInteger('item')->nullable()->default(0);
             $table->string('title', 255)->nullable()->default('');
             $table->string('code', 255)->nullable()->default('');

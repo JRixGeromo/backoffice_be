@@ -15,7 +15,7 @@ class CreateTxShopDomainModelOrderAddressTable extends Migration
     {
         Schema::create('tx_shop_domain_model_order_address', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('linked_id')->nullable()->default(0);
+            $table->unsignedInteger('linked_id')->nullable()->default(0)->index('linked_id');
             $table->string('record_type', 255)->nullable()->default('');
             $table->string('item', 255)->nullable()->default('');
             $table->string('title', 255)->nullable()->default('');

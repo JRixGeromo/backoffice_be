@@ -56,6 +56,7 @@ class CreateFeUsersTable extends Migration
             $table->integer('tx_shop_is_guest')->nullable();
             $table->integer('tx_shop_unsubscribed')->nullable();
             $table->integer('tx_shop_is_unsubscribed')->nullable();
+            $table->string('user_type',15)->nullable();
             $table->timestamps();
         });
     }

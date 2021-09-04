@@ -34,6 +34,7 @@ class FeUser extends Model
         'image',
         'lastlogin',
         'uid',
-        'pid'
+        'pid',
+        'user_type'
     ];
 }

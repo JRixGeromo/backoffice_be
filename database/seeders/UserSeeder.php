@@ -2,8 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Database\Seeder;
+use App\Models\User;
 
 class UserSeeder extends Seeder
 {
@@ -14,27 +15,13 @@ class UserSeeder extends Seeder
      */
     public function run()
     {
-        User::factory(20)->create();
-
-        User::factory()->create([
-            'first_name' => 'Admin',
-            'last_name' => 'Admin',
-            'email' => 'admin@admin.com',
+        $user = User::create([
+            'first_name' => 'admin', 
+            'last_name' => 'admin', 
+            'email' => 'admin@zotter.at',
+            'password' => Hash::make('preview'),
             'role_id' => 1,
         ]);
 
-        User::factory()->create([
-            'first_name' => 'Editor',
-            'last_name' => 'Editor',
-            'email' => 'editor@editor.com',
-            'role_id' => 2,
-        ]);
-
-        User::factory()->create([
-            'first_name' => 'Viewer',
-            'last_name' => 'Viewer',
-            'email' => 'viewer@viewer.com',
-            'role_id' => 3,
-        ]);
-    }
+     }
 }

@@ -18,7 +18,7 @@ class CreateOrderImportTrackersTable extends Migration
             $table->unsignedInteger('uid')->default(0);
             $table->string('order_number')->default('')->index('order_number');
             $table->string('order_status', 50)->default('');
-            $table->boolean('import_status')->default(0);
+            $table->boolean('import_status')->default(0)->index('uid');
             $table->timestamp('created_at')->default(\DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamp('updated_at')->default(\DB::raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
         });
