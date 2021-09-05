@@ -128,10 +128,10 @@ class OrderController extends Controller
         $items_sold = "SUM(tx_shop_domain_model_order_product.count) as items_sold";
         $net_sales = "SUM(tx_shop_domain_model_order_item.total_net) as net_sales";
 
-        $currentFrom = Carbon::parse('2021/05/01')->timestamp;
-        $currentTo = Carbon::parse('2021/05/30')->timestamp;
-        $previousFrom = Carbon::parse('2020/05/01')->timestamp;
-        $previousto = Carbon::parse('2020/05/30')->timestamp;
+        $currentFrom = Carbon::parse('2021/01/01')->timestamp;
+        $currentTo = Carbon::parse('2021/12/30')->timestamp;
+        $previousFrom = Carbon::parse('2020/01/01')->timestamp;
+        $previousto = Carbon::parse('2020/12/30')->timestamp;
 
         if($type=='overview') {
             $data['sales'] = TxShopDomainModelOrderItem::query()
@@ -196,7 +196,32 @@ class OrderController extends Controller
                 ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
                 ->groupBy('y')
                 ->get();
-                                    
+
+        } else if($type=='product_list') {
+            $data['list'] = TxShopDomainModelOrderItem::query()
+                ->leftjoin('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
+                ->selectRaw(
+                    $ymd. ',
+                    tx_shop_domain_model_order_item.id, 
+                    tx_shop_domain_model_order_product.title as title, 
+                    tx_shop_domain_model_order_product.sku as sku, 
+                    tx_shop_domain_model_order_product.count as items_sold,
+                    tx_shop_domain_model_order_item.total_net as net_sales, 
+                    tx_shop_domain_model_order_item.order_number as orders,
+                    tx_shop_domain_model_order_item.order_status as order_status, 
+                    "???" as variations, 
+                    "???" as stock'
+                    )
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->orderBy('ymd', 'DESC')
+                ->limit(6)
+                ->get();
+
+                // Ave order value =  total_net_sales / total_orders
+                // Ave items per order =  total_items_sold / total_orders                                    
         } else if($type=='orders') {
 
             $data['sales'] = TxShopDomainModelOrderItem::query()
@@ -228,6 +253,32 @@ class OrderController extends Controller
                 ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
                 ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
                 ->groupBy('y')
+                ->get();
+
+                // Ave order value =  total_net_sales / total_orders
+                // Ave items per order =  total_items_sold / total_orders
+        } else if($type=='order_list') {
+            $data['list'] = TxShopDomainModelOrderItem::query()
+                ->leftjoin('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
+                ->leftjoin('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+                ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
+                ->selectRaw(
+                    $ymd. ',
+                    tx_shop_domain_model_order_item.id, 
+                    tx_shop_domain_model_order_item.order_number as order_number, 
+                    tx_shop_domain_model_order_item.order_status as order_status, 
+                    tx_shop_domain_model_order_item.total_net as net_sales, 
+                    fe_users.name as customer, 
+                    fe_users.user_type as customer_type, 
+                    tx_shop_domain_model_order_product.title as product, 
+                    tx_shop_domain_model_order_product.count as items_sold, 
+                    tx_shop_domain_model_order_discount.code as coupon'
+                    )
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
+                ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
+                ->orderBy('ymd', 'DESC')
+                ->limit(6)
                 ->get();
 
                 // Ave order value =  total_net_sales / total_orders
@@ -271,16 +322,7 @@ class OrderController extends Controller
                 ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
                 ->groupBy('y')
                 ->get();
-            
-            $data['percent'] = array("gross_sales"=>67,
-                                "returns"=>89,
-                                "coupons"=>54,
-                                "net_sales"=>78,
-                                "taxes"=>81,
-                                "shipping"=>70,
-                                "total_sales"=>78
-                                );
-                                
+                              
         } else if($type=='customer') {
             $data['customer_info'] = FeUser::query()->select("*")->limit(1)->get();
             $data['orders'] = TxShopDomainModelOrderItem::query()
@@ -318,7 +360,7 @@ class OrderController extends Controller
                 ->join('tx_shop_domain_model_order_address', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_address.linked_id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    $y .' , '. 
+                    $ymd .' , '. 
                     $total_sales .' , '. 
                     $orders .' , '. 
                     "tx_shop_domain_model_order_address.country as country"
@@ -326,7 +368,7 @@ class OrderController extends Controller
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
                 ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
-                ->groupBy('country', 'y')
+                ->groupBy('country', 'ymd')
                 ->orderBy('orders', 'DESC')
                 ->limit(6)
                 ->get();
@@ -336,7 +378,7 @@ class OrderController extends Controller
                 ->join('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    $y .' , '. 
+                    $ymd .' , '. 
                     $total_sales .' , '. 
                     $orders .' , '. 
                     "fe_users.email as customer"
@@ -344,7 +386,7 @@ class OrderController extends Controller
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
                 ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
                 ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
-                ->groupBy('customer', 'y')
+                ->groupBy('customer', 'ymd')
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
@@ -353,7 +395,7 @@ class OrderController extends Controller
             $data['top_categories'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(        
-                    $y .' , '.         
+                    $ymd .' , '.         
                     $total_sales .' , '.
                     $orders .' , '. 
                     "tx_shop_domain_model_order_product.product_type as product_type"
@@ -361,7 +403,7 @@ class OrderController extends Controller
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
                 ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
                 ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
-                ->groupBy('product_type', 'y')
+                ->groupBy('product_type', 'ymd')
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
@@ -370,22 +412,21 @@ class OrderController extends Controller
             $data['top_products'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    $y .' , '. 
-                    $total_sales .' , '. 
-                    $orders .' , '. 
+                    $ymd .' , '. 
+                    $items_sold .' , '. 
+                    $net_sales .' , '. 
                     "tx_shop_domain_model_order_product.title as title"
                 )
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
                 ->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo])
                 ->orWhereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousto])
-                ->groupBy('title', 'y')
-                ->orderBy('total_sales', 'DESC')
+                ->groupBy('title', 'ymd')
+                ->orderBy('net_sales', 'DESC')
                 ->limit(6)
                 ->get();
         }    
 
         return $data;        
-            
     }
     
 

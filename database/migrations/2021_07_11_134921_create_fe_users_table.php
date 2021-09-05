@@ -15,7 +15,7 @@ class CreateFeUsersTable extends Migration
     {
         Schema::create('fe_users', function (Blueprint $table) {
             $table->id();
-            $table->integer('uid')->index('uid');
+            $table->integer('uid')->nullable()->index('uid');
             $table->integer('pid')->nullable();
             $table->integer('tstamp')->nullable();
             $table->integer('crdate')->nullable();

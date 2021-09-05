@@ -1,61 +1,25 @@
-version: "3"
+version: "2.0"
 services:
-  #Laravel BE Service
-  backend:
+  shopbackend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: smargasy/zotter-backend-be
-    container_name: backend-api
-    restart: unless-stopped
-    tty: true
-    environment:
-      SERVICE_NAME: zotter-backend-api
-      SERVICE_TAGS: dev
-    working_dir: /var/www
-    volumes:
-      - ./:/var/www
-      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
-    networks:
-      - app-network
-
-  #Nginx Service BE
-  webserver:
-    image: nginx:alpine
-    container_name: webserver-be
-    restart: unless-stopped
-    tty: true
     ports:
-      - "8080:8080"
+      - 8081:8000
     volumes:
-      - ./:/var/www
-      - ./nginx/conf.d/:/etc/nginx/conf.d/
-    networks:
-      - app-network
+      - .:/app
+    depends_on:
+      - db
 
-  #MySQL Service
   db:
     image: mysql:5.7.22
-    container_name: db
-    restart: unless-stopped
-    tty: true
+    restart: always
     environment:
-      MYSQL_DATABASE: zotter_backend
-      MYSQL_ROOT_PASSWORD: zotter_backend
-      SERVICE_TAGS: dev
-      SERVICE_NAME: mysql
+      MYSQL_DATABASE: shopbackend
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: root
     volumes:
-      - dbdata:/var/lib/mysql/
-      - ./mysql/my.cnf:/etc/mysql/my.cnf
-    networks:
-      - app-network
-
-#Docker Networks
-networks:
-  app-network:
-    driver: bridge
-
-#Volumes
-volumes:
-  dbdata:
-    driver: local
+      - ./storage/shopdbdata:/var/lib/mysql
+    ports:
+      - 3306:3306
