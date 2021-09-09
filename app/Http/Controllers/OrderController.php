@@ -158,8 +158,8 @@ class OrderController extends Controller
         $prevTo = '';
 
         $data = array();
-        $now = '2020/06/01';
-        //$now = Carbon::now();
+        //$now = '2020/06/01';
+        $now = Carbon::now();
         
         // these are from input
         //$internalDate = Carbon::parse(substr($order->orderDate, 0,10)); // TO DO : need to format properly and get the 'Y-m-d' only
@@ -175,8 +175,8 @@ class OrderController extends Controller
             $g2 = Carbon::parse($prevFrom)->format('d'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%d') as gby";
 
-            $data['criteria']['currentText'] = 'Today';
-            $data['criteria']['previousText'] = 'Yesterday';
+            $data['criteria']['currentText'] = 'Today ('. $currFrom.')';
+            $data['criteria']['previousText'] = 'Yesterday ('. $prevFrom.')';
             $data['criteria']['g1'] = $g1;
             $data['criteria']['g2'] = $g2;
 
@@ -197,8 +197,8 @@ class OrderController extends Controller
             $g2 = Carbon::parse($prevFrom)->format('w'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%w') as gby";
 
-            $data['criteria']['currentText'] = 'This Week';
-            $data['criteria']['previousText'] = 'Last Week';
+            $data['criteria']['currentText'] = 'This Week ('. $currWeekFirstDay->format('M d Y').' to '.$currWeeklastDay->format('M d Y').')';
+            $data['criteria']['previousText'] = 'Last Week ('. $prevWeekFirstDay->format('M d Y').' to '.$prevWeeklastDay->format('M d Y').')';
             $data['criteria']['g1'] = $g1;
             $data['criteria']['g2'] = $g2;
 
@@ -218,8 +218,8 @@ class OrderController extends Controller
             $g2 = Carbon::parse($prevFrom)->format('m'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m') as gby";
 
-            $data['criteria']['currentText'] = 'This Month';
-            $data['criteria']['previousText'] = 'Last Month';
+            $data['criteria']['currentText'] = 'This Month ('. $currMonthFirstDay->format('M d Y').' to '.$currMonthlastDay->format('M d Y').')';
+            $data['criteria']['previousText'] = 'Last Month ('. $prevMonthFirstDay->format('M d Y').' to '.$prevMonthlastDay->format('M d Y').')';
             $data['criteria']['g1'] = $g1;
             $data['criteria']['g2'] = $g2;
 
@@ -239,8 +239,8 @@ class OrderController extends Controller
             $g2 = Carbon::parse($prevFrom)->format('m'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m') as gby";
 
-            $data['criteria']['currentText'] = 'This Quarter';
-            $data['criteria']['previousText'] = 'Last Quarter';
+            $data['criteria']['currentText'] = 'This Quarter ('. $currQuarterFirstDay->format('M d Y').' to '.$currQuarterlastDay->format('M d Y').')';
+            $data['criteria']['previousText'] = 'Last Quarter ('. $prevQuarterFirstDay->format('M d Y').' to '.$prevQuarterlastDay->format('M d Y').')';
             $data['criteria']['g1'] = $g1;
             $data['criteria']['g2'] = $g2;
 
@@ -261,8 +261,9 @@ class OrderController extends Controller
             $g2 = Carbon::parse($prevFrom)->format('Y'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y') as gby";
 
-            $data['criteria']['currentText'] = 'This Year';
-            $data['criteria']['previousText'] = 'Last Year';
+            $data['criteria']['currentText'] = 'This Year ('. $currYearFirstDay->format('M d Y').' to '.$currYearlastDay->format('M d Y').')';
+            $data['criteria']['previousText'] = 'Last Year ('. $prevYearFirstDay->format('M d Y').' to '.$prevYearlastDay->format('M d Y').')';
+
             $data['criteria']['g1'] = $g1;
             $data['criteria']['g2'] = $g2;
 
@@ -381,6 +382,7 @@ class OrderController extends Controller
                 ->leftjoin('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
                 ->selectRaw(
+                    $g .' , '.  // this varies 
                     $ymd. ',
                     tx_shop_domain_model_order_item.id, 
                     tx_shop_domain_model_order_product.title as title, 
@@ -454,6 +456,7 @@ class OrderController extends Controller
                 ->leftjoin('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
                 ->selectRaw(
+                    $g .' , '.  // this varies 
                     $ymd. ',
                     tx_shop_domain_model_order_item.id, 
                     tx_shop_domain_model_order_item.order_number as order_number, 
