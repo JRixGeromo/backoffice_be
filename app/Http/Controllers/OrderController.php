@@ -170,12 +170,16 @@ class OrderController extends Controller
             $currTo = Carbon::parse($now)->format('Y/m/d');
             $prevFrom = Carbon::parse($prevFrom)->subDay(1)->format('Y/m/d');
             $prevTo = Carbon::parse($prevFrom)->subDay(1)->format('Y/m/d');
-        
-            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%d') as d";
-            $gby = "d";
+
+            $g1 = Carbon::parse($currFrom)->format('d'); // current group
+            $g2 = Carbon::parse($prevFrom)->format('d'); // previous group
+            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%d') as gby";
 
             $data['criteria']['currentText'] = 'Today';
             $data['criteria']['previousText'] = 'Yesterday';
+            $data['criteria']['g1'] = $g1;
+            $data['criteria']['g2'] = $g2;
+
 
         } else if ($curr == 'CurrWeekToDate') {  // get week  
 
@@ -189,11 +193,14 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevWeekFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevWeeklastDay)->format('Y/m/d');
 
-            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%w') as w";
-            $gby = "w";
-            
+            $g1 = Carbon::parse($currFrom)->format('w'); // current group
+            $g2 = Carbon::parse($prevFrom)->format('w'); // previous group
+            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%w') as gby";
+
             $data['criteria']['currentText'] = 'This Week';
             $data['criteria']['previousText'] = 'Last Week';
+            $data['criteria']['g1'] = $g1;
+            $data['criteria']['g2'] = $g2;
 
         } else if ($curr == 'CurrMonthToDate') {  // get month  
             
@@ -207,10 +214,9 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevMonthFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevMonthlastDay)->format('Y/m/d');
 
-            $g1 = Carbon::parse($currFrom)->format('m');
-            $g2 = Carbon::parse($prevFrom)->format('m');
+            $g1 = Carbon::parse($currFrom)->format('m'); // current group
+            $g2 = Carbon::parse($prevFrom)->format('m'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m') as gby";
-            $gby = "gby";
 
             $data['criteria']['currentText'] = 'This Month';
             $data['criteria']['previousText'] = 'Last Month';
@@ -229,12 +235,15 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevQuarterFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevQuarterlastDay)->format('Y/m/d');
 
-            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m') as m";
-            $gby = "m";
-
+            $g1 = Carbon::parse($currFrom)->format('m'); // current group
+            $g2 = Carbon::parse($prevFrom)->format('m'); // previous group
+            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m') as gby";
 
             $data['criteria']['currentText'] = 'This Quarter';
             $data['criteria']['previousText'] = 'Last Quarter';
+            $data['criteria']['g1'] = $g1;
+            $data['criteria']['g2'] = $g2;
+
 
         } else if ($curr == 'CurrYearToDate') {  // get year  
 
@@ -248,11 +257,14 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevYearFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevYearlastDay)->format('Y/m/d');
 
-            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y') as y";
-            $gby = "y";
+            $g1 = Carbon::parse($currFrom)->format('Y'); // current group
+            $g2 = Carbon::parse($prevFrom)->format('Y'); // previous group
+            $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y') as gby";
 
             $data['criteria']['currentText'] = 'This Year';
             $data['criteria']['previousText'] = 'Last Year';
+            $data['criteria']['g1'] = $g1;
+            $data['criteria']['g2'] = $g2;
 
         } else if ($curr == 'CurrPreviousPeriod') {  // get period  
         }
@@ -262,11 +274,11 @@ class OrderController extends Controller
         $prevF = $prevFrom;  
         $prevT = $prevTo;  
 
-        $data['criteria']['currentFrom'] = Carbon::parse($currF)->format('Y');
-        $data['criteria']['currentTo'] = Carbon::parse($currT)->format('Y');
-        $data['criteria']['previousFrom'] = Carbon::parse($prevF)->format('Y');
-        $data['criteria']['previousTo'] = Carbon::parse($prevT)->format('Y');
-        $data['criteria']['gby'] = $gby;
+        // $data['criteria']['currentFrom'] = Carbon::parse($currF)->format('Y');
+        // $data['criteria']['currentTo'] = Carbon::parse($currT)->format('Y');
+        // $data['criteria']['previousFrom'] = Carbon::parse($prevF)->format('Y');
+        // $data['criteria']['previousTo'] = Carbon::parse($prevT)->format('Y');
+        $data['criteria']['gby'] = 'gby';
 
         $currentFrom = Carbon::parse($currF)->timestamp;
         $currentTo = Carbon::parse($currT)->timestamp;
@@ -296,20 +308,10 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
@@ -319,7 +321,7 @@ class OrderController extends Controller
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    $g .' , '. 
+                    $g .' , '.  // this varies 
                     $orders ." , ". 
                     $net_sales . ", ". 
                     $items_sold. ", ". 
@@ -327,22 +329,12 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy($gby)
+                ->groupBy('gby') // this varies 
                 ->get();
 
         } else if($type=='products') {
@@ -357,20 +349,10 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
@@ -379,29 +361,19 @@ class OrderController extends Controller
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    $g .' , '. 
+                    $g .' , '.  // this varies 
                     $orders .' , '. 
                     $net_sales . ", ".
                     $items_sold
                     )                    
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy($gby)
+                ->groupBy('gby') // this varies 
                 ->get();
 
         } else if($type=='product_list') {
@@ -422,20 +394,10 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
                 ->orderBy('ymd', 'DESC')
                 ->limit(6)
@@ -455,20 +417,10 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
@@ -478,29 +430,19 @@ class OrderController extends Controller
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    $g .' , '. 
+                    $g .' , '. // this varies 
                     $orders .' , '. 
                     $items_sold .' , '. 
                     $net_sales
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy($gby)
+                ->groupBy('gby') // this varies 
                 ->get();
 
                 // Ave order value =  net_sales / orders
@@ -525,20 +467,10 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
                 ->orderBy('ymd', 'DESC')
                 ->limit(6)
@@ -582,7 +514,7 @@ class OrderController extends Controller
             $data['summary'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
-                    $y .' , '. 
+                    $g .' , '. // this varies 
                     "SUM(tx_shop_domain_model_order_item.net) as total_net,
                     SUM(tx_shop_domain_model_order_item.gross) as total_gross_sales,
                     SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales,
@@ -596,22 +528,12 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy('y')
+                ->groupBy('gby') // this varies 
                 ->get();
                               
         } else if($type=='customer') {
@@ -636,14 +558,14 @@ class OrderController extends Controller
                 ->get();
 
         } else {
-            $top = $this->top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y, $curr);    
+            $top = $this->top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y, $curr, $g);    
             $data = array_merge($data, $top); 
         }       
         
         return $data;
     }
     
-    private function top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y, $curr)
+    private function top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y, $curr, $g)
     {
 
         if($type == 'top_countries') {
@@ -651,6 +573,7 @@ class OrderController extends Controller
                 ->join('tx_shop_domain_model_order_address', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_address.linked_id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
+                    $g .' , '. 
                     $ymd .' , '. 
                     $total_sales .' , '. 
                     $orders .' , '. 
@@ -658,22 +581,12 @@ class OrderController extends Controller
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy('country', 'ymd')
+                ->groupBy('country', 'ymd', 'gby')
                 ->orderBy('orders', 'DESC')
                 ->limit(6)
                 ->get();
@@ -683,6 +596,7 @@ class OrderController extends Controller
                 ->join('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
+                    $g .' , '. 
                     $ymd .' , '. 
                     $total_sales .' , '. 
                     $orders .' , '. 
@@ -690,22 +604,12 @@ class OrderController extends Controller
                 )
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy('customer', 'ymd')
+                ->groupBy('customer', 'ymd', 'gby')
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
@@ -714,29 +618,20 @@ class OrderController extends Controller
             $data['top_categories'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(        
-                    $ymd .' , '.         
+                    $g .' , '. 
+                    $ymd .' , '.     
                     $total_sales .' , '.
                     $orders .' , '. 
                     "tx_shop_domain_model_order_product.product_type as product_type"
                 )
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy('product_type', 'ymd')
+                ->groupBy('product_type', 'ymd', 'gby')
                 ->orderBy('total_sales', 'DESC')
                 ->limit(6)
                 ->get();
@@ -745,6 +640,7 @@ class OrderController extends Controller
             $data['top_products'] = TxShopDomainModelOrderItem::query()
                 ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->selectRaw(
+                    $g .' , '. 
                     $ymd .' , '. 
                     $items_sold .' , '. 
                     $net_sales .' , '. 
@@ -752,22 +648,12 @@ class OrderController extends Controller
                 )
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
                 ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
-                    } else {
-                        $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
-                    }
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
                 })
                 ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    if($curr == 'CurrToday') {
-                       $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
-                             ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
-                    } else {
-                       $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$previousFrom, $previousTo]);
-                    }
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
                 })
-                ->groupBy('title', 'ymd')
+                ->groupBy('title', 'ymd', 'gby')
                 ->orderBy('net_sales', 'DESC')
                 ->limit(6)
                 ->get();
@@ -776,6 +662,15 @@ class OrderController extends Controller
         return $data;        
     }
     
+    public function qry($query, $from, $to, $get){
+        if($get == 'CurrToday') {
+            $q = $query->where('tx_shop_domain_model_order_item.internal_date','>=',$from)
+                    ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $to);
+        } else {
+            $q = $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$from, $to]);
+        }        
+        return $q;
+    }
 
     public function dateGrouping()
     {
