@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\FeUser;
 use App\Models\OrderImportTracker;
 use App\Models\TxShopDomainModelOrderItem;
+use App\Models\TxShopDomainModelOrderProduct;
 use Illuminate\Http\Request;
 use App\Http\Custom\Helper;
 use Carbon\Carbon;
@@ -115,7 +116,19 @@ class OrderController extends Controller
         //
     }
 
-    public function analytics($type, $curr, $prev)
+
+    public function common($type)
+    {
+
+        $common['all_products'] = TxShopDomainModelOrderProduct::query()
+            ->selectRaw('title, sku')
+            ->groupBy('title', 'sku')
+            ->get();
+
+        return $common;
+    }
+
+    public function analytics($type, $curr, $prev, $prod)
     {
         /*
           $periods = array(
@@ -293,13 +306,16 @@ class OrderController extends Controller
         $y = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y') as y";
 
         $orders = "COUNT(tx_shop_domain_model_order_item.order_number) as orders";
-        $total_sales = "SUM(tx_shop_domain_model_order_item.total_gross) as total_sales";
+        $total_sales = "SUM(tx_shop_domain_model_order_product.gross) as total_sales";
         $items_sold = "SUM(tx_shop_domain_model_order_product.count) as items_sold";
-        $net_sales = "SUM(tx_shop_domain_model_order_item.total_net) as net_sales";
+        $raw_items_sold = "SUM(tx_shop_domain_model_order_product.count) as items_sold";
+        $net_sales = "SUM(tx_shop_domain_model_order_product.net) as net_sales";
+        $gross_sales = "SUM(tx_shop_domain_model_order_product.gross) as gross_sales";
 
         if($type=='overview') {
-            $data['sales'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            //$data['sales'] = TxShopDomainModelOrderItem::query()
+            $data['sales'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->selectRaw(
                     $ymd .' , '. 
                     $md .' , '. 
@@ -308,19 +324,20 @@ class OrderController extends Controller
                     $net_sales 
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
 
         } else if($type=='overview_summary') {
             
-            $data['summary'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                // ->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
                     $g .' , '.  // this varies 
                     $orders ." , ". 
@@ -329,19 +346,20 @@ class OrderController extends Controller
                     $total_sales . ", '0' as black"
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('gby') // this varies 
                 ->get();
 
         } else if($type=='products') {
 
-            $data['sales'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['sales'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                // ->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
                     $ymd .' , '. 
                     $md .' , '. 
@@ -349,18 +367,19 @@ class OrderController extends Controller
                     $items_sold
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
 
         } else if($type=='products_summary') {
-            $data['summary'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                // ->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
                     $g .' , '.  // this varies 
                     $orders .' , '. 
@@ -368,18 +387,18 @@ class OrderController extends Controller
                     $items_sold
                     )                    
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('gby') // this varies 
                 ->get();
 
         } else if($type=='product_list') {
-            $data['list'] = TxShopDomainModelOrderItem::query()
-                ->leftjoin('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['list'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
                 ->selectRaw(
                     $g .' , '.  // this varies 
@@ -395,11 +414,11 @@ class OrderController extends Controller
                     "???" as stock'
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->orderBy('ymd', 'DESC')
                 ->limit(6)
@@ -409,8 +428,9 @@ class OrderController extends Controller
                 // Ave items per order =  total_items_sold / total_orders                                    
         } else if($type=='orders') {
 
-            $data['sales'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['sales'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                //->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
                     $ymd .' , '. 
                     $md .' , '. 
@@ -418,19 +438,20 @@ class OrderController extends Controller
                     $orders
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
 
 
         } else if($type=='orders_summary') {
-            $data['summary'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                //->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
                     $g .' , '. // this varies 
                     $orders .' , '. 
@@ -438,11 +459,11 @@ class OrderController extends Controller
                     $net_sales
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('gby') // this varies 
                 ->get();
@@ -451,9 +472,9 @@ class OrderController extends Controller
                 // Ave items per order =  items_sold / orders
 
         } else if($type=='order_list') {
-            $data['list'] = TxShopDomainModelOrderItem::query()
+            $data['list'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->leftjoin('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
-                ->leftjoin('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
                 ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
                 ->selectRaw(
                     $g .' , '.  // this varies 
@@ -469,11 +490,11 @@ class OrderController extends Controller
                     tx_shop_domain_model_order_discount.code as coupon'
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->orderBy('ymd', 'DESC')
                 ->limit(6)
@@ -484,8 +505,9 @@ class OrderController extends Controller
 
         } else if($type=='revenue') {
 
-            $data['sales'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['sales'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                //->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
                     $ymd .' , '. 
                     $md .' , '. 
@@ -494,7 +516,7 @@ class OrderController extends Controller
                     $net_sales
                    )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
                     if($curr == 'CurrToday') {
                        $query->where('tx_shop_domain_model_order_item.internal_date','>=',$currentFrom)
                              ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $currentTo);
@@ -502,7 +524,7 @@ class OrderController extends Controller
                         $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$currentFrom, $currentTo]);
                     }
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
                     if($curr == 'CurrToday') {
                        $query->where('tx_shop_domain_model_order_item.internal_date','>=',$previousFrom)
                              ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $previousTo);
@@ -514,67 +536,67 @@ class OrderController extends Controller
                 ->get();
 
         } else if($type=='revenue_summary') {
-            $data['summary'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->leftjoin('tx_shop_domain_model_order_tax', 'tx_shop_domain_model_order_tax.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->leftjoin('tx_shop_domain_model_order_shipping', 'tx_shop_domain_model_order_shipping.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_discount.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->selectRaw(
                     $g .' , '. // this varies 
-                    "SUM(tx_shop_domain_model_order_item.net) as total_net,
-                    SUM(tx_shop_domain_model_order_item.gross) as total_gross_sales,
-                    SUM(tx_shop_domain_model_order_item.total_net) as total_net_sales,
-                    SUM(tx_shop_domain_model_order_item.total_gross) as total_gross_sales,
-                    34324 as total_taxes,
-                    54634 as total_shipping,
-                    232 as total_coupons,
-                    564544 as total_returns,
-                    324323 as total_sales
-                    "
+                    $net_sales .' , '. 
+                    $gross_sales .' , '. 
+                    $total_sales .' , '. 
+                    "SUM(tx_shop_domain_model_order_tax.tax) as taxes,
+                    SUM(tx_shop_domain_model_order_shipping.gross) as shipping,
+                    SUM(tx_shop_domain_model_order_discount.gross) as coupons"
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('gby') // this varies 
                 ->get();
-                              
+
+
         } else if($type=='customer') {
             $data['customer_info'] = FeUser::query()->select("*")->limit(1)->get();
-            $data['orders'] = TxShopDomainModelOrderItem::query()
+            $data['orders'] = TxShopDomainModelOrderProduct::query()
                 ->select('*')
                 ->limit(6)
                 ->get();
-            $data['viewed_products'] = TxShopDomainModelOrderItem::query()
+            $data['viewed_products'] = TxShopDomainModelOrderProduct::query()
                 ->select('*')
                 ->limit(6)
                 ->get();
             $data['message'] = 'This is a test message';
             $data['voucher'] = 'This is a test voucher';
-            $data['last_emails'] = TxShopDomainModelOrderItem::query()
+            $data['last_emails'] = TxShopDomainModelOrderProduct::query()
                 ->select('*')
                 ->limit(6)
                 ->get();
-            $data['groups'] = TxShopDomainModelOrderItem::query()
+            $data['groups'] = TxShopDomainModelOrderProduct::query()
                 ->select('*')
                 ->limit(6)
                 ->get();
 
         } else {
-            $top = $this->top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y, $curr, $g);    
+            $top = $this->top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $raw_items_sold, $net_sales, $ymd, $md, $y, $curr, $prod, $g);    
             $data = array_merge($data, $top); 
         }       
         
         return $data;
     }
     
-    private function top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $net_sales, $ymd, $md, $y, $curr, $g)
+    private function top($type, $currentFrom, $currentTo, $previousFrom, $previousTo, $orders, $total_sales, $items_sold, $raw_items_sold, $net_sales, $ymd, $md, $y, $curr, $prod, $g)
     {
 
         if($type == 'top_countries') {
-            $data['top_countries'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_address', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_address.linked_id')
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['top_countries'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->leftjoin('tx_shop_domain_model_order_address', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_address.linked_id')
                 ->selectRaw(
                     $g .' , '. 
                     $ymd .' , '. 
@@ -583,11 +605,11 @@ class OrderController extends Controller
                     "tx_shop_domain_model_order_address.country as country"
                     )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('country', 'ymd', 'gby')
                 ->orderBy('orders', 'DESC')
@@ -595,9 +617,9 @@ class OrderController extends Controller
                 ->get();
 
         } else if ($type == 'top_customers') {
-            $data['top_customers'] = TxShopDomainModelOrderItem::query()
-                ->join('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['top_customers'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->leftjoin('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
                 ->selectRaw(
                     $g .' , '. 
                     $ymd .' , '. 
@@ -606,11 +628,11 @@ class OrderController extends Controller
                     "fe_users.email as customer"
                 )
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('customer', 'ymd', 'gby')
                 ->orderBy('total_sales', 'DESC')
@@ -618,8 +640,8 @@ class OrderController extends Controller
                 ->get();
 
         } else if ($type == 'top_categories') {
-            $data['top_categories'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['top_categories'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->selectRaw(        
                     $g .' , '. 
                     $ymd .' , '.     
@@ -628,11 +650,11 @@ class OrderController extends Controller
                     "tx_shop_domain_model_order_product.product_type as product_type"
                 )
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('product_type', 'ymd', 'gby')
                 ->orderBy('total_sales', 'DESC')
@@ -640,21 +662,21 @@ class OrderController extends Controller
                 ->get();
 
         } else if ($type == 'top_products') {
-            $data['top_products'] = TxShopDomainModelOrderItem::query()
-                ->join('tx_shop_domain_model_order_product', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_product.linked_id')
+            $data['top_products'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->selectRaw(
                     $g .' , '. 
                     $ymd .' , '. 
-                    $items_sold .' , '. 
+                    $raw_items_sold .' , '. 
                     $net_sales .' , '. 
                     "tx_shop_domain_model_order_product.title as title"
                 )
                 ->where('tx_shop_domain_model_order_item.order_status', '=', 'transferred')
-                ->where(function($query) use ($currentFrom, $currentTo, $curr) {
-                    $query = $this->qry($query, $currentFrom, $currentTo, $curr);
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
                 })
-                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr) {
-                    $query = $this->qry($query, $previousFrom, $previousTo, $curr);
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 })
                 ->groupBy('title', 'ymd', 'gby')
                 ->orderBy('net_sales', 'DESC')
@@ -665,12 +687,26 @@ class OrderController extends Controller
         return $data;        
     }
     
-    public function qry($query, $from, $to, $get){
+    public function qry($query, $from, $to, $get, $prod){ // review $prod tomorrow
+        
         if($get == 'CurrToday') {
-            $q = $query->where('tx_shop_domain_model_order_item.internal_date','>=',$from)
+            if($prod != 'All') {
+                $q = $query->where('tx_shop_domain_model_order_item.internal_date','>=',$from)
+                    ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $to)
+                    ->Where('tx_shop_domain_model_order_product.sku', '=', $prod);
+            } else {
+                $q = $query->where('tx_shop_domain_model_order_item.internal_date','>=',$from)
                     ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $to);
+            }
+
         } else {
-            $q = $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$from, $to]);
+            if($prod != 'All') {
+                $q = $query->whereBetween('tx_shop_domain_model_order_item.internal_date', [$from, $to])
+                    ->Where('tx_shop_domain_model_order_product.sku', '=', $prod);
+            } else {
+                $q = $query->where('tx_shop_domain_model_order_item.internal_date','>=',$from)
+                    ->Where('tx_shop_domain_model_order_item.internal_date', '<=', $to);
+            }            
         }        
         return $q;
     }

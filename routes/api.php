@@ -29,7 +29,6 @@ Route::get('date_grouping', [OrderController::class, 'dateGrouping']);
 Route::apiResource('users', UserController::class);
 Route::apiResource('roles', RoleController::class);
 Route::get('permissions', [PermissionController::class, 'index']);
-Route::get('orders', [OrderController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('user', [AuthController::class, 'user']);
@@ -42,9 +41,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::get('permissions', [PermissionController::class, 'index']);
     // Route::post('upload', [ImageController::class, 'upload']);
 
-    // Route::get('orders', [OrderController::class, 'index']);
+    Route::get('orders', [OrderController::class, 'index']);
+
+    Route::get('common/{type}', [OrderController::class, 'common']);
+
     
     //Route::post('export', [OrderController::class, 'export']);
-    Route::get('analytics/{type}/{curr}/{prev}', [OrderController::class, 'analytics']);
+    Route::get('analytics/{type}/{curr}/{prev}/{prod}', [OrderController::class, 'analytics']);
 });
 
