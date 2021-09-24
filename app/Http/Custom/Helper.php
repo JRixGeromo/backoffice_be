@@ -70,15 +70,27 @@ class Helper {
     }
 
     function importOrderTracker($orderArray) {
-        for($i = 0; $i < sizeof($orderArray['order']); $i++) {
-            $found = OrderImportTracker::where('order_number',$orderArray['order'][$i]['order_number'])->first();
-            if(!$found) {
-                DB::insert("INSERT INTO order_import_trackers(`uid`, `order_number`, `order_status`) VALUES(?, ?, ?)", [
-                    $orderArray['order'][$i]['uid'],
-                    $orderArray['order'][$i]['order_number'],
-                    $orderArray['order'][$i]['order_status'],
-                ]);
-    
+        if(sizeof($orderArray['order']) > 1) {
+            for($i = 0; $i < sizeof($orderArray['order']); $i++) {
+                $found = OrderImportTracker::where('order_number',$orderArray['order'][$i]['order_number'])->first();
+                if(!$found) {
+                    DB::insert("INSERT INTO order_import_trackers(`uid`, `order_number`, `order_status`) VALUES(?, ?, ?)", [
+                        $orderArray['order'][$i]['uid'],
+                        $orderArray['order'][$i]['order_number'],
+                        $orderArray['order'][$i]['order_status'],
+                    ]);
+                }
+            }
+        } else {
+            if($orderArray['order']['uid']) {
+                $found = OrderImportTracker::where('order_number',$orderArray['order']['order_number'])->first();
+                if(!$found) {                
+                    DB::insert("INSERT INTO order_import_trackers(`uid`, `order_number`, `order_status`) VALUES(?, ?, ?)", [
+                        $orderArray['order']['uid'],
+                        $orderArray['order']['order_number'],
+                        $orderArray['order']['order_status'],
+                    ]);
+                }
             }
         }
     }

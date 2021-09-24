@@ -24,30 +24,44 @@ class OrderController extends Controller
         
         $url = "https://zotterdev.developer.at/?type=2289002";
         $maxOrderNumber = OrderImportTracker::max('order_number');
-
+        $start = 1;
         if((int)$maxOrderNumber > 0) {
-            $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$maxOrderNumber;
+            $start = $maxOrderNumber;
+            $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$start."&tx_devshopfeed_xmlfeed[limitorders]=10000";
+        } else {
+            $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$start."&tx_devshopfeed_xmlfeed[limitorders]=10000";
         }
-        sleep(2);
-        
+        //sleep(2);
         $result = $helper->consumeAPIClient($url, true);  // for XML REST
         if($result) {
             $result = $helper->importOrderTracker($result);  // store ORDERS for import
         }
         
         // $forImportOrders = OrderImportTracker::where('import_status', 0)->limit(10)->get()->toArray();
+        /*
         $forImportOrders = OrderImportTracker::where('import_status', 0)->get()->toArray();
         foreach ($forImportOrders as $order) { // for uid REST
-
             $url = "https://zotterdev.developer.at/rest/shop_item/".$order['uid'];
             $result = $helper->consumeAPIClient($url, false);  // for REST
             if($result) {
                 sleep(1);
-                // echo $order['uid'];
                 $result = $helper->importOrderByUID($result, $order['id']);  // import ORDER
             }
-            
         }
+        */
+
+        OrderImportTracker::where('import_status', 0)->chunk(100, function($orders) {
+            $h = new Helper();
+            foreach ($orders as $order) {
+                $url = "https://zotterdev.developer.at/rest/shop_item/".$order['uid'];
+                $result = $h->consumeAPIClient($url, false);  // for REST
+                if($result) {
+                    sleep(1);
+                    $result = $h->importOrderByUID($result, $order['id']);  // import ORDER
+                }
+            }
+        });
+
     }
 
     /**
@@ -336,6 +350,7 @@ class OrderController extends Controller
         } else if($type=='overview_summary') {
             
             $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 // ->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
@@ -358,6 +373,7 @@ class OrderController extends Controller
         } else if($type=='products') {
 
             $data['sales'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 // ->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
@@ -378,6 +394,7 @@ class OrderController extends Controller
 
         } else if($type=='products_summary') {
             $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 // ->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
@@ -398,6 +415,7 @@ class OrderController extends Controller
 
         } else if($type=='product_list') {
             $data['list'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
                 ->selectRaw(
@@ -429,6 +447,7 @@ class OrderController extends Controller
         } else if($type=='orders') {
 
             $data['sales'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 //->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
@@ -450,6 +469,7 @@ class OrderController extends Controller
 
         } else if($type=='orders_summary') {
             $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 //->join('product_view', 'tx_shop_domain_model_order_item.id', '=', 'product_view.linked_id')
                 ->selectRaw(
@@ -473,6 +493,7 @@ class OrderController extends Controller
 
         } else if($type=='order_list') {
             $data['list'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->leftjoin('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
                 ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
@@ -503,6 +524,67 @@ class OrderController extends Controller
                 // Ave order value =  total_net_sales / total_orders
                 // Ave items per order =  total_items_sold / total_orders
 
+        } else if($type=='categories') {
+            $data['sales'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->selectRaw(
+                    $ymd .' , '. 
+                    $md .' , '. 
+                    $y .' , '. 
+                    $items_sold
+                    )
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
+                })
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
+                })
+                ->groupBy('ymd', 'md', 'y')
+                ->get();            
+        } else if($type=='categories_summary') {
+            $data['summary'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->selectRaw(
+                    $g .' , '.
+                    $orders .' , '. 
+                    $items_sold .' , '. 
+                    $net_sales
+                    )
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
+                })
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
+                })
+                ->groupBy('gby') 
+                ->get();
+
+        } else if($type=='categories_list') {
+            $data['list'] = TxShopDomainModelOrderProduct::query()
+                ->distinct()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                ->selectRaw(
+                    'COUNT(tx_shop_domain_model_order_item.order_number) as orders, 
+                    SUM(tx_shop_domain_model_order_product.net) as net_sales, 
+                    COUNT(tx_shop_domain_model_order_product.title) as products,
+                    SUM(tx_shop_domain_model_order_product.count) as items_sold, 
+                    COUNT(tx_shop_domain_model_order_product.product_type) as categories'
+                    )
+                ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                    $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
+                })
+                ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                    $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
+                })
+                ->groupBy('tx_shop_domain_model_order_product.product_type')
+                ->orderBy('categories', 'DESC')
+                ->limit(6)
+                ->get();
         } else if($type=='revenue') {
 
             $data['sales'] = TxShopDomainModelOrderProduct::query()
@@ -564,6 +646,7 @@ class OrderController extends Controller
         } else if($type=='customer') {
             $data['customer_info'] = FeUser::query()->select("*")->limit(1)->get();
             $data['orders'] = TxShopDomainModelOrderProduct::query()
+                ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->select('*')
                 ->limit(6)
                 ->get();
