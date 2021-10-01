@@ -70,26 +70,28 @@ class Helper {
     }
 
     function importOrderTracker($orderArray) {
-        if(sizeof($orderArray['order']) > 1) {
-            for($i = 0; $i < sizeof($orderArray['order']); $i++) {
-                $found = OrderImportTracker::where('order_number',$orderArray['order'][$i]['order_number'])->first();
-                if(!$found) {
-                    DB::insert("INSERT INTO order_import_trackers(`uid`, `order_number`, `order_status`) VALUES(?, ?, ?)", [
-                        $orderArray['order'][$i]['uid'],
-                        $orderArray['order'][$i]['order_number'],
-                        $orderArray['order'][$i]['order_status'],
-                    ]);
+        if(isset($orderArray['order'])) {
+            if(sizeof($orderArray['order']) > 1) {
+                for($i = 0; $i < sizeof($orderArray['order']); $i++) {
+                    $found = OrderImportTracker::where('order_number',$orderArray['order'][$i]['order_number'])->first();
+                    if(!$found) {
+                        DB::insert("INSERT INTO order_import_trackers(`uid`, `order_number`, `order_status`) VALUES(?, ?, ?)", [
+                            $orderArray['order'][$i]['uid'],
+                            $orderArray['order'][$i]['order_number'],
+                            $orderArray['order'][$i]['order_status'],
+                        ]);
+                    }
                 }
-            }
-        } else {
-            if($orderArray['order']['uid']) {
-                $found = OrderImportTracker::where('order_number',$orderArray['order']['order_number'])->first();
-                if(!$found) {                
-                    DB::insert("INSERT INTO order_import_trackers(`uid`, `order_number`, `order_status`) VALUES(?, ?, ?)", [
-                        $orderArray['order']['uid'],
-                        $orderArray['order']['order_number'],
-                        $orderArray['order']['order_status'],
-                    ]);
+            } else {
+                if($orderArray['order']['uid']) {
+                    $found = OrderImportTracker::where('order_number',$orderArray['order']['order_number'])->first();
+                    if(!$found) {                
+                        DB::insert("INSERT INTO order_import_trackers(`uid`, `order_number`, `order_status`) VALUES(?, ?, ?)", [
+                            $orderArray['order']['uid'],
+                            $orderArray['order']['order_number'],
+                            $orderArray['order']['order_status'],
+                        ]);
+                    }
                 }
             }
         }
@@ -120,8 +122,8 @@ class Helper {
         ini_set('memory_limit', '-1');
         try {
 
-            DB::beginTransaction();
-            if($order->feUser->email) {
+            // DB::beginTransaction();
+            if(isset($order->feUser->email)) {
                 $wishlistHash = $order->feUser->wishlistHash;
                 $isGuest = $order->feUser->isGuest;
                 $isUnsubscribed = $order->feUser->isUnsubscribed;
@@ -370,7 +372,7 @@ class Helper {
                 'uid' => $order->shipping->uid,
                 'pid' => $order->shipping->pid
             ));
-            DB::commit();
+            // DB::commit();
 
             // set import_status to true
 			$updateOrder = OrderImportTracker::find($id);
@@ -380,9 +382,9 @@ class Helper {
             return response(['message' => 'Successful'], 200);
 
           } catch (\Exception $e) {
-            DB::rollBack();
-            return response(['message' => 'Error'], 400);
-            //$this->errorMessage = $e->getMessage();
+            // DB::rollBack();
+            // return response(['message' => 'Error'], 400);
+            $this->errorMessage = $e->getMessage();
          };
     }
 

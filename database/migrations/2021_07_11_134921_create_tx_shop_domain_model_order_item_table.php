@@ -15,7 +15,7 @@ class CreateTxShopDomainModelOrderItemTable extends Migration
     {
         Schema::create('tx_shop_domain_model_order_item', function (Blueprint $table) {
             $table->id();
-            $table->integer('cart_pid')->default(0);
+            $table->integer('cart_pid')->nullable()->default(0);
             $table->unsignedInteger('fe_user')->nullable()->default(0)->index('fe_user');
             $table->unsignedInteger('billing_address')->nullable()->default(0);
             $table->unsignedInteger('shipping_address')->nullable()->default(0);

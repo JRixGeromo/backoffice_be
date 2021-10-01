@@ -20,6 +20,7 @@ class OrderController extends Controller
      */
     public function index()
     {
+        /*
         $helper = new Helper();
         
         $url = "https://zotterdev.developer.at/?type=2289002";
@@ -31,24 +32,11 @@ class OrderController extends Controller
         } else {
             $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$start."&tx_devshopfeed_xmlfeed[limitorders]=10000";
         }
-        //sleep(2);
         $result = $helper->consumeAPIClient($url, true);  // for XML REST
         if($result) {
             $result = $helper->importOrderTracker($result);  // store ORDERS for import
         }
-        
-        // $forImportOrders = OrderImportTracker::where('import_status', 0)->limit(10)->get()->toArray();
-        /*
-        $forImportOrders = OrderImportTracker::where('import_status', 0)->get()->toArray();
-        foreach ($forImportOrders as $order) { // for uid REST
-            $url = "https://zotterdev.developer.at/rest/shop_item/".$order['uid'];
-            $result = $helper->consumeAPIClient($url, false);  // for REST
-            if($result) {
-                sleep(1);
-                $result = $helper->importOrderByUID($result, $order['id']);  // import ORDER
-            }
-        }
-        */
+
 
         OrderImportTracker::where('import_status', 0)->chunk(100, function($orders) {
             $h = new Helper();
@@ -61,6 +49,7 @@ class OrderController extends Controller
                 }
             }
         });
+        */
 
     }
 
@@ -642,6 +631,38 @@ class OrderController extends Controller
                 ->groupBy('gby') // this varies 
                 ->get();
 
+            } else if($type=='revenue_list') {
+                $data['list'] = TxShopDomainModelOrderProduct::query()
+                    ->distinct()    
+                    ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+                    ->leftjoin('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
+                    ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
+                    ->selectRaw(
+                        $g .' , '.  // this varies 
+                        $ymd. ',
+                        tx_shop_domain_model_order_item.id, 
+                        tx_shop_domain_model_order_item.order_number as order_number, 
+                        tx_shop_domain_model_order_item.order_status as order_status, 
+                        tx_shop_domain_model_order_item.total_net as net_sales, 
+                        fe_users.name as customer, 
+                        fe_users.user_type as customer_type, 
+                        tx_shop_domain_model_order_product.title as product, 
+                        tx_shop_domain_model_order_product.count as items_sold, 
+                        tx_shop_domain_model_order_discount.code as coupon'
+                        )
+                    ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+                    ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                        $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
+                    })
+                    ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                        $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
+                    })
+                    ->orderBy('ymd', 'DESC')
+                    ->limit(6)
+                    ->get();
+    
+                    // Ave order value =  total_net_sales / total_orders
+                    // Ave items per order =  total_items_sold / total_orders
 
         } else if($type=='customer') {
             $data['customer_info'] = FeUser::query()->select("*")->limit(1)->get();

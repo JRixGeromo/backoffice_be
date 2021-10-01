@@ -41,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::get('permissions', [PermissionController::class, 'index']);
     // Route::post('upload', [ImageController::class, 'upload']);
 
-    Route::get('orders', [OrderController::class, 'index']);
+    // Route::get('orders', [OrderController::class, 'index']);
 
     Route::get('common/{type}', [OrderController::class, 'common']);
 

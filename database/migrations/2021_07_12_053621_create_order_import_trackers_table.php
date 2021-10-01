@@ -15,10 +15,10 @@ class CreateOrderImportTrackersTable extends Migration
     {
         Schema::create('order_import_trackers', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('uid')->default(0);
-            $table->string('order_number')->default('')->index('order_number');
-            $table->string('order_status', 50)->default('');
-            $table->boolean('import_status')->default(0)->index('uid');
+            $table->unsignedInteger('uid')->nullable()->default(0);
+            $table->string('order_number')->nullable()->default('')->index('order_number');
+            $table->string('order_status', 50)->nullable()->default('');
+            $table->boolean('import_status')->nullable()->default(0)->index('uid');
             $table->timestamp('created_at')->default(\DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamp('updated_at')->default(\DB::raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
         });

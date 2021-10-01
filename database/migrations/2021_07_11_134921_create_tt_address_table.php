@@ -14,7 +14,8 @@ class CreateTtAddressTable extends Migration
     public function up()
     {
         Schema::create('tt_address', function (Blueprint $table) {
-            $table->integer('uid')->primary();
+            $table->id();
+            $table->integer('uid')->nullable();
             $table->integer('pid')->nullable();
             $table->integer('tstamp')->nullable();
             $table->integer('crdate')->nullable();

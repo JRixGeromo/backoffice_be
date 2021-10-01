@@ -14,11 +14,12 @@ class CreateTtAddressShopTable extends Migration
     public function up()
     {
         Schema::create('tt_address_shop', function (Blueprint $table) {
+            $table->id();
             $table->unsignedInteger('fe_user')->nullable()->default(0)->index('fe_user');
-            $table->string('address_type', 255)->default('');
-            $table->string('salutation', 255)->default('');
-            $table->string('department', 255)->default('');
-            $table->string('tax_identification_number', 255)->default('');
+            $table->string('address_type', 255)->nullable()->default('');
+            $table->string('salutation', 255)->nullable()->default('');
+            $table->string('department', 255)->nullable()->default('');
+            $table->string('tax_identification_number', 255)->nullable()->default('');
         });
     }
 
