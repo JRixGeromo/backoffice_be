@@ -187,8 +187,8 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevFrom)->subDay(1)->format('Y/m/d');
             $prevTo = Carbon::parse($prevFrom)->subDay(1)->format('Y/m/d');
 
-            $g1 = Carbon::parse($currFrom)->format('d'); // current group
-            $g2 = Carbon::parse($prevFrom)->format('d'); // previous group
+            $g2 = Carbon::parse($currFrom)->format('d'); // current group
+            $g1 = Carbon::parse($prevFrom)->format('d'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%d') as gby";
 
             $data['criteria']['currentText'] = 'Today ('. $currFrom.')';
@@ -209,8 +209,8 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevWeekFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevWeeklastDay)->format('Y/m/d');
 
-            $g1 = Carbon::parse($currFrom)->format('w'); // current group
-            $g2 = Carbon::parse($prevFrom)->format('w'); // previous group
+            $g2 = Carbon::parse($currFrom)->format('w'); // current group
+            $g1 = Carbon::parse($prevFrom)->format('w'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%w') as gby";
 
             $data['criteria']['currentText'] = 'This Week ('. $currWeekFirstDay->format('M d Y').' to '.$currWeeklastDay->format('M d Y').')';
@@ -230,8 +230,8 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevMonthFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevMonthlastDay)->format('Y/m/d');
 
-            $g1 = Carbon::parse($currFrom)->format('m'); // current group
-            $g2 = Carbon::parse($prevFrom)->format('m'); // previous group
+            $g2 = Carbon::parse($currFrom)->format('m'); // current group
+            $g1 = Carbon::parse($prevFrom)->format('m'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m') as gby";
 
             $data['criteria']['currentText'] = 'This Month ('. $currMonthFirstDay->format('M d Y').' to '.$currMonthlastDay->format('M d Y').')';
@@ -251,8 +251,8 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevQuarterFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevQuarterlastDay)->format('Y/m/d');
 
-            $g1 = Carbon::parse($currFrom)->format('m'); // current group
-            $g2 = Carbon::parse($prevFrom)->format('m'); // previous group
+            $g2 = Carbon::parse($currFrom)->format('m'); // current group
+            $g1 = Carbon::parse($prevFrom)->format('m'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%m') as gby";
 
             $data['criteria']['currentText'] = 'This Quarter ('. $currQuarterFirstDay->format('M d Y').' to '.$currQuarterlastDay->format('M d Y').')';
@@ -273,8 +273,8 @@ class OrderController extends Controller
             $prevFrom = Carbon::parse($prevYearFirstDay)->format('Y/m/d');
             $prevTo = Carbon::parse($prevYearlastDay)->format('Y/m/d');
 
-            $g1 = Carbon::parse($currFrom)->format('Y'); // current group
-            $g2 = Carbon::parse($prevFrom)->format('Y'); // previous group
+            $g2 = Carbon::parse($currFrom)->format('Y'); // current group
+            $g1 = Carbon::parse($prevFrom)->format('Y'); // previous group
             $g = "DATE_FORMAT(tx_shop_domain_model_order_item.order_date, '%Y') as gby";
 
             $data['criteria']['currentText'] = 'This Year ('. $currYearFirstDay->format('M d Y').' to '.$currYearlastDay->format('M d Y').')';
@@ -335,6 +335,24 @@ class OrderController extends Controller
                 })
                 ->groupBy('ymd', 'md', 'y')
                 ->get();
+
+            $data['sales_summary'] = TxShopDomainModelOrderProduct::query()
+            ->distinct()    
+            ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+            ->selectRaw(
+                $g .' , '.  // this varies 
+                $net_sales . ", ". 
+                $orders
+                )
+            ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+            ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
+            })
+            ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
+            })
+            ->groupBy('gby') // this varies 
+            ->get();
 
         } else if($type=='overview_summary') {
             
@@ -403,12 +421,13 @@ class OrderController extends Controller
                 ->get();
 
         } else if($type=='product_list') {
+            /*
             $data['list'] = TxShopDomainModelOrderProduct::query()
                 ->distinct()    
                 ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
                 ->leftjoin('tx_shop_domain_model_order_discount', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_discount.linked_id')
                 ->selectRaw(
-                    $g .' , '.  // this varies 
+                    $g .' , '.
                     $ymd. ',
                     tx_shop_domain_model_order_item.id, 
                     tx_shop_domain_model_order_product.title as title, 
@@ -430,9 +449,34 @@ class OrderController extends Controller
                 ->orderBy('ymd', 'DESC')
                 ->limit(6)
                 ->get();
+            */
 
-                // Ave order value =  total_net_sales / total_orders
-                // Ave items per order =  total_items_sold / total_orders                                    
+            $data['list'] = TxShopDomainModelOrderProduct::query()
+            ->distinct()    
+            ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+            ->selectRaw(
+                $g .' ,
+                tx_shop_domain_model_order_product.title as title, 
+                tx_shop_domain_model_order_product.sku as sku, 
+                SUM(tx_shop_domain_model_order_product.count) as items_sold,
+                SUM(tx_shop_domain_model_order_product.net) as net_sales, 
+                COUNT(tx_shop_domain_model_order_product.linked_id) as orders,
+                tx_shop_domain_model_order_item.order_status as order_status, 
+                "???" as variations, 
+                "???" as stock'
+                )
+            ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')
+            ->where(function($query) use ($currentFrom, $currentTo, $curr, $prod) {
+                $query = $this->qry($query, $currentFrom, $currentTo, $curr, $prod);
+            })
+            ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
+                $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
+            })
+            ->groupBy('gby', 'title', 'sku', 'order_status')
+            // ->orderBy('ymd', 'DESC')
+            ->limit(6)
+            ->get();
+
         } else if($type=='orders') {
 
             $data['sales'] = TxShopDomainModelOrderProduct::query()
@@ -583,7 +627,7 @@ class OrderController extends Controller
                     $ymd .' , '. 
                     $md .' , '. 
                     $y .' , '. 
-                    $items_sold .' , '. 
+                    $gross_sales .' , '. 
                     $net_sales
                    )
                 ->where('tx_shop_domain_model_order_item.order_status', '=','transferred')

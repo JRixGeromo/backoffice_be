@@ -46,16 +46,16 @@ class ImportOrder extends Command
         $start = 1;
         if((int)$maxOrderNumber > 0) {
             $start = $maxOrderNumber;
-            $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$start."&tx_devshopfeed_xmlfeed[limitorders]=200";
+            $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$start."&tx_devshopfeed_xmlfeed[limitorders]=150";
         } else {
-            $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$start."&tx_devshopfeed_xmlfeed[limitorders]=200";
+            $url = "https://zotterdev.developer.at/?type=2289002&tx_devshopfeed_xmlfeed[ordernumber]=".$start."&tx_devshopfeed_xmlfeed[limitorders]=150";
         }
         $result = $helper->consumeAPIClient($url, true);  // for XML REST
         if($result) {
             $result = $helper->importOrderTracker($result);  // store ORDERS for import
         }
         
-        $forImportOrders = OrderImportTracker::where('import_status', 0)->limit(200)->get()->toArray();
+        $forImportOrders = OrderImportTracker::where('import_status', 0)->limit(150)->get()->toArray();
 
         foreach ($forImportOrders as $order) { // for uid REST
             $url = "https://zotterdev.developer.at/rest/shop_item/".$order['uid'];
