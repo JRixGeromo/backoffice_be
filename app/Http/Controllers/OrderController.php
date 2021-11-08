@@ -176,6 +176,34 @@ class OrderController extends Controller
         return $data;
     }
 
+    public function customerDetails($customerId)
+    {
+        $data['customer_info'] = FeUser::query()->selectRaw("*")
+        ->where('fe_users.id', '=',$customerId)
+        ->limit(1)
+        ->get();
+        $data['orders'] = TxShopDomainModelOrderProduct::query()
+            ->leftjoin('tx_shop_domain_model_order_item', 'tx_shop_domain_model_order_product.linked_id', '=', 'tx_shop_domain_model_order_item.id')
+            ->leftjoin('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
+            ->leftjoin('tx_shop_domain_model_order_payment', 'tx_shop_domain_model_order_item.id', '=', 'tx_shop_domain_model_order_payment.linked_id')
+            ->selectRaw('tx_shop_domain_model_order_item.*, tx_shop_domain_model_order_product.*, tx_shop_domain_model_order_payment.*')
+            ->where('fe_users.id', '=',$customerId)
+            ->where('fe_users.id', '=',$customerId)
+            ->limit(6)
+            ->get();
+        $data['viewed_products'] = null;
+        $data['message'] = null;
+        $data['voucher'] = null;
+        $data['last_emails'] = null;
+        $data['groups'] = TxShopDomainModelOrderItem::query()
+            ->leftjoin('fe_users', 'tx_shop_domain_model_order_item.fe_user', '=', 'fe_users.id')
+            ->selectRaw('fe_users.*')
+            ->where('fe_users.id', '=',$customerId)
+            ->get();
+
+        return $data;
+    }
+
     public function analytics($type, $curr, $prev, $prod)
     {
         /*
@@ -735,6 +763,7 @@ class OrderController extends Controller
                     tx_shop_domain_model_order_item.order_status as order_status, 
                     SUM(tx_shop_domain_model_order_product.net) as net_sales, 
                     fe_users.name as customer, 
+                    fe_users.id as customer_id, 
                     fe_users.user_type as customer_type, 
                     MIN(tx_shop_domain_model_order_product.title) as product, 
                     COUNT(tx_shop_domain_model_order_product.title) as product_count, 
@@ -748,7 +777,7 @@ class OrderController extends Controller
                 // ->orWhere(function($query) use ($previousFrom, $previousTo, $curr, $prod) {
                 //     $query = $this->qry($query, $previousFrom, $previousTo, $curr, $prod);
                 // })
-                ->groupBy('gby', 'ymd', 'order_number', 'order_status', 'customer', 'customer_type', 'coupon')
+                ->groupBy('gby', 'ymd', 'order_number', 'order_status', 'customer', 'customer_id', 'customer_type', 'coupon')
                 ->orderBy('gby', 'DESC')
                 ->limit(6)
                 ->get();

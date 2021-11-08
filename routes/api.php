@@ -49,5 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
     //Route::post('export', [OrderController::class, 'export']);
     Route::get('analytics/{type}/{curr}/{prev}/{prod}', [OrderController::class, 'analytics']);
     Route::get('order-details/{orderNumber}', [OrderController::class, 'orderDetails']);
+    Route::get('customer-details/{customerId}', [OrderController::class, 'customerDetails']);
+
+    
 });
 
